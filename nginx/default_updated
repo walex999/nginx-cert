@@ -1,0 +1,22 @@
+# /etc/nginx/sites-available/default stripped of all its comments. Comes down to this simple config that exposes /cert
+
+server {
+        listen 443 ssl default_server;
+        listen [::]:443 ssl default_server;
+        ssl_certificate /home/ubuntu/crt.crt;
+        ssl_certificate_key /home/ubuntu/key.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+
+        root /var/www/html;
+
+        index index.html index.htm index.nginx-debian.html;
+
+        server_name _;
+
+        location / {
+                try_files $uri $uri/ =404;
+        }
+        location /cert {
+                try_files /cert.html =404;
+        }
+}
