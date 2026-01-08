@@ -8,9 +8,12 @@ OUTPUT_HTML="/var/www/html/cert.html" #to modify with the actual path of the htm
 SUBJECT=$(openssl x509 -in "$CERT_PATH" -noout -subject)
 ISSUER=$(openssl x509 -in "$CERT_PATH" -noout -issuer)
 SERIAL=$(openssl x509 -in "$CERT_PATH" -noout -serial)
+START=$(openssl x509 -in "$CERT_PATH" -noout -startdate)
 EXPIRY=$(openssl x509 -in "$CERT_PATH" -noout -enddate)
 
+
 # Converting to a human-readable expiry date
+START_DATE=$(echo "$START" | sed 's/notBefore=//')
 EXPIRY_DATE=$(echo "$EXPIRY" | sed 's/notAfter=//')
 
 # Writing this info to the HTML file
@@ -28,6 +31,7 @@ cat <<EOF > "$OUTPUT_HTML"
         <li><strong>Subject:</strong> $SUBJECT</li>
         <li><strong>Issuer:</strong> $ISSUER</li>
         <li><strong>Serial:</strong> $SERIAL</li>
+        <li><strong>Issuing Date:</strong> $START_DATE</li>
         <li><strong>Expiration Date:</strong> $EXPIRY_DATE</li>
     </ul>
 </body>

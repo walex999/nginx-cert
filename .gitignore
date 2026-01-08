@@ -1,1 +1,5 @@
 .DS_Store
+terraform/aws/.terraform/
+terraform/aws/*.tfstate
+terraform/scaleway/.terraform/
+terraform/scaleway/*.tfstate
