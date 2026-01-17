@@ -7,6 +7,12 @@ The AWS provider for Terraform is used to provision the appropriate environment 
 
 <img src="docs/demo-lab.png" alt="UI preview" width="1080"/>
 
+This environment is deployed with the following commands:
+```bash
+terraform plan -var-file=values.tfvars -out tfplan
+terraform apply -var-file=values.tfvars tfplan
+```
+
 ## Script creating the webpage with the certificate information
 To maintain a dependance free static HTML page that is as simple as possible, the certificate is fetched on service start/restart. Since the service needs to be restarted when the x.509 certificate is changed, this is not an issue and can be done easily by modifying the service itself.
 **Running the script once before modifying the nginx service is the right starting point to test verify permissions etc.**

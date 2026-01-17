@@ -234,7 +234,7 @@ resource "aws_security_group" "asa-demo-security-group-instances" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = [aws_subnet.asa-demo-private-subnet.cidr_block]
+    cidr_blocks = [aws_vpc.asa-demo-vpc.cidr_block]
   }
   egress {
     description = "Allow outbound traffic"
