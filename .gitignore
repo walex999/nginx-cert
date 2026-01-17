@@ -1,5 +1,7 @@
 .DS_Store
 terraform/aws/.terraform/
 terraform/aws/*.tfstate
+terraform/aws/values.tfvars
 terraform/scaleway/.terraform/
-terraform/scaleway/*.tfstate
+*.tfstate*
+*tfplan
