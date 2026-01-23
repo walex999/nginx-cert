@@ -154,7 +154,7 @@ resource "aws_security_group" "asa-demo-security-group-nlb" {
   dynamic "ingress" {
     for_each = var.source_ips
     content {
-      description = "SSH from known IPs"
+      description = "SSH from known IPs to nginx"
       from_port   = 10221
       to_port     = 10221
       protocol    = "tcp"
@@ -164,9 +164,19 @@ resource "aws_security_group" "asa-demo-security-group-nlb" {
   dynamic "ingress" {
     for_each = var.source_ips
     content {
-      description = "HTTPS from known IPs"
+      description = "HTTPS from known IPs to nginx"
       from_port   = 10441
       to_port     = 10441
+      protocol    = "tcp"
+      cidr_blocks = [ingress.value]
+    }
+  }
+  dynamic "ingress" {
+    for_each = var.source_ips
+    content {
+      description = "RDP from known IPs to TPP"
+      from_port   = 10389
+      to_port     = 10389
       protocol    = "tcp"
       cidr_blocks = [ingress.value]
     }
@@ -222,6 +232,16 @@ resource "aws_security_group" "asa-demo-security-group-instances" {
   dynamic "ingress" {
     for_each = var.source_ips
     content {
+      description = "RDP from known IPs"
+      from_port   = 3389
+      to_port     = 3389
+      protocol    = "tcp"
+      cidr_blocks = [ingress.value]
+    }
+  }
+  dynamic "ingress" {
+    for_each = var.source_ips
+    content {
       description = "HTTPS from known IPs"
       from_port   = 443
       to_port     = 443
@@ -246,7 +266,7 @@ resource "aws_security_group" "asa-demo-security-group-instances" {
   tags = {
     Name                = "asa-demo-security-group-instances"
     I_Owner             = var.owner
-    I_Purpose           = "Security group for HTTPS, SSH access and in cluster communication."
+    I_Purpose           = "Security group for RDP, HTTPS, SSH access as well as in cluster communication."
     AllowFromEverywhere = "yes"
   }
 }
@@ -268,7 +288,7 @@ resource "aws_instance" "asa-demo-nginx-vm" {
   }
 }
 
-# Forwarding traffic from 10441 to 443
+# Target group for port 443
 resource "aws_lb_target_group" "asa-demo-target-group-nginx-https" {
   name     = "asa-demo-tg-nginx-https"
   port     = 443
@@ -294,6 +314,7 @@ resource "aws_lb_target_group_attachment" "asa-demo-target-group-nginx-https-att
   #port             = 443 not mandatory, should be inherited from the resource above
 }
 
+# Forwarding traffic from 10441 to 443 on the nginx instance
 resource "aws_lb_listener" "asa-demo-nlb-listener-nginx-https" {
   load_balancer_arn = aws_lb.asa-demo-network-load-balancer.arn
   port              = 10441
@@ -314,7 +335,7 @@ resource "aws_lb_listener" "asa-demo-nlb-listener-nginx-https" {
   }
 }
 
-# Forwarding traffic from 10221 to 22
+# Target group for port 22 on nginx instance
 resource "aws_lb_target_group" "asa-demo-target-group-nginx-ssh" {
   name     = "asa-demo-target-group-nginx-ssh"
   port     = 22
@@ -340,6 +361,7 @@ resource "aws_lb_target_group_attachment" "asa-demo-target-group-nginx-ssh-attac
   #port             = 443 not mandatory, should be inherited from the resource above
 }
 
+# Forwarding traffic from 10221 to 22 on the nginx instance
 resource "aws_lb_listener" "asa-demo-nlb-listener-nginx-ssh" {
   load_balancer_arn = aws_lb.asa-demo-network-load-balancer.arn
   port              = 10221
@@ -357,5 +379,75 @@ resource "aws_lb_listener" "asa-demo-nlb-listener-nginx-ssh" {
     Name      = "asa-demo-nlb-listener-nginx-ssh"
     I_Owner   = var.owner
     I_Purpose = "Listener for SSH access to the Nginx VM."
+  }
+}
+
+
+# Creating the TPP Windows Server 2022 intance
+resource "aws_instance" "asa-demo-tpp" {
+  ami                         = "ami-051b0dbb3f14160ed"
+  instance_type               = "t3.xlarge"
+  subnet_id                   = aws_subnet.asa-demo-private-subnet.id
+  key_name                    = var.ec2_key_name
+  associate_public_ip_address = false
+  vpc_security_group_ids      = [aws_security_group.asa-demo-security-group-instances.id]
+
+  root_block_device {
+    encrypted             = true
+    volume_size           = 80
+    volume_type           = "gp3"
+    delete_on_termination = true
+  }
+
+  tags = {
+    Name      = "asa-demo-tpp"
+    I_Owner   = var.owner
+    I_Purpose = "TPP VM."
+  }
+}
+
+# Target group for port 3389 on TPP instance
+resource "aws_lb_target_group" "asa-demo-target-group-tpp-rdp" {
+  name     = "asa-demo-target-group-tpp-rdp"
+  port     = 3389
+  vpc_id   = aws_vpc.asa-demo-vpc.id
+  protocol = "TCP"
+  health_check {
+    protocol = "TCP"
+  }
+  target_type        = "instance"
+  preserve_client_ip = true
+
+  tags = {
+    Name      = "asa-demo-target-group-tpp-rdp"
+    I_Owner   = var.owner
+    I_Purpose = "Target group for RDP access to the TPP VM."
+  }
+}
+
+# Attaching the target group to the TPP instance
+resource "aws_lb_target_group_attachment" "asa-demo-target-group-tpp-rdp-attachment" {
+  target_group_arn = aws_lb_target_group.asa-demo-target-group-tpp-rdp.arn
+  target_id        = aws_instance.asa-demo-tpp.id
+}
+
+# Forwarding traffic from 10389 to 3389 on the TPP instance
+resource "aws_lb_listener" "asa-demo-nlb-listener-tpp-rdp" {
+  load_balancer_arn = aws_lb.asa-demo-network-load-balancer.arn
+  port              = 10389
+  protocol          = "TCP"
+  default_action {
+    type = "forward"
+    forward {
+      target_group {
+        arn    = aws_lb_target_group.asa-demo-target-group-tpp-rdp.arn
+        weight = 1
+      }
+    }
+  }
+  tags = {
+    Name      = "asa-demo-nlb-listener-tpp-rdp"
+    I_Owner   = var.owner
+    I_Purpose = "Listener for RDP access to the TPP VM."
   }
 }
