@@ -5,3 +5,6 @@ terraform/aws/values.tfvars
 terraform/scaleway/.terraform/
 *.tfstate*
 *tfplan
+
+# Temporary
+ansible/*

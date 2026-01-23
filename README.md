@@ -9,6 +9,7 @@ The AWS provider for Terraform is used to provision the appropriate environment 
 
 This environment is deployed with the following commands:
 ```bash
+terraform validate
 terraform plan -var-file=values.tfvars -out tfplan
 terraform apply -var-file=values.tfvars tfplan
 ```
