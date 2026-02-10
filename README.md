@@ -1,8 +1,7 @@
 # Cert-Demo-Environment 
 The point of this repo is to enable setting up demo environments for PKI solutions easily through IaC. Meaning, Terraform is used to provision the resources and Ansible will be used in the future to configure the resources. The goal is to include as many use cases as possible as time goes on.
 
-# What was done so far
-## Terraform 
+# Terraform 
 The AWS provider for Terraform is used to provision the appropriate environment (open to suggestions for architecture/code improvements). Here's the detailed diagram and some notes:
 
 <img src="docs/demo-lab.png" alt="UI preview" width="1080"/>
@@ -13,6 +12,9 @@ terraform validate
 terraform plan -var-file=values.tfvars -out tfplan
 terraform apply -var-file=values.tfvars tfplan
 ```
+
+# NGINX use case
+The first use case implemented in this demo environment is nginx. An Ubuntu VM is deployed through terraform for this use case.
 
 ## Script creating the webpage with the certificate information
 To maintain a dependance free static HTML page that is as simple as possible, the certificate is fetched on service start/restart. Since the service needs to be restarted when the x.509 certificate is changed, this is not an issue and can be done easily by modifying the service itself.
@@ -39,6 +41,42 @@ This can then be tested out with a restart of the service.
 Asking AI for a basic [CSS](web/style.css) to highlight those elements does the trick. Here's the final result:
 
 <img src="docs/UI_screenshot.png" alt="UI preview" width="900"/>
+
+## Ansible
+Here are the files impacted by the Ansible playbook for nginx
+```md
+/
+├── etc
+│   ├── nginx 
+│   │   ├── conf.d
+│   │   │   └── demo-https.conf
+│   │   └── ssl
+│   │       ├── nginxcrt.crt
+│   │       └── nginxkey.key
+│   └── systemd
+│       └── system
+│           ├── nginx.service.d
+│           └── override.conf
+├── usr
+│   └── local
+│       └── bin
+│           └── update_cert_info.sh
+└── var
+    └── www
+        └── html
+            ├── cert.html
+            └── style.css
+```
+First step is documenting the `inventory.ini` file to connect to the instance on the right port with the right user name.
+Connection is then tested using this command 
+```bash
+ansible nginx-vm --inventory inventory.ini -m ping --private-key <private_key_path>
+```
+Syntax is tested using this:
+```bash
+ansible-playbook nginx.yaml --check -vvv
+```
+
 
 # Improvements
 - Ansible to configure the EC2 instances

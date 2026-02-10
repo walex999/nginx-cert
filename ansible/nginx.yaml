@@ -1,0 +1,58 @@
+---
+- name: Install demo nginx server wiht custom webpage
+  hosts: nginx-vm
+  become: yes
+  vars:
+    script_destination_path: /usr/local/bin/update_cert_info.sh
+
+  tasks:
+    - name: Update with apt
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Upgrade with apt
+      ansible.builtin.apt:
+        upgrade: full
+
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: latest
+
+    - name: Copy Script to the server
+      ansible.builtin.copy:
+        src: ../scripts/update_cert_info.sh
+        dest: "{{ script_destination_path }}"
+
+    # IMPROVEMENT
+    #    - name: Retrieve a certificate for Bootstrapping
+
+    - name: Copying the HTML document that will be replaced on service restart
+      ansible.builtin.copy:
+        src: ../web/cert-example.html
+        dest: /var/www/html/cert.html
+
+    - name: Copying the CSS document
+      ansible.builtin.copy:
+        src: ../web/style.css
+        dest: /var/www/html/style.css
+
+    - name: Copying the Nginx configuration to expose port 443 with a TLS certificate
+      ansible.builtin.copy:
+        src: ../nginx/default_updated
+        dest: /etc/nginx/conf.d/demo-https.conf
+
+    - name: Modifying the Nginx service to have it run the script on start and reload
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/nginx.service.d/override.conf
+        content: |
+          [Service]
+          ExecStartPre="{{ script_destination_path }}"
+          ExecReloadPre="{{ script_destination_path }}"
+
+    - name: Restarting the Nginx service
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+        enabled: true
+...
